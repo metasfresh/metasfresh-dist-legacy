@@ -455,7 +455,9 @@ stage('Test SQL-Migration')
 						.replaceAll('[^a-zA-Z0-9]', '_') // // postgresql is in a way is allergic to '-' and '.' and many other characters in in DB names
 						.toLowerCase(); // also, DB names are generally in lowercase
 
-				invokeRemoteInInstallDir("./sql_remote.sh -n ${VALIDATE_MIGRATION_TEMPLATE_DB} ${VALIDATE_MIGRATION_TEST_DB}");
+				// -v: ignore the DB's version and just try to apply the script.
+				// Right now, taking into account the DB's version can cause trouble with old version strings that have no branch component in their PreReleaseVersion
+				invokeRemoteInInstallDir("./sql_remote.sh -v -n ${VALIDATE_MIGRATION_TEMPLATE_DB} ${VALIDATE_MIGRATION_TEST_DB}");
 
 				invokeRemoteInHomeDir("rm -r ${deployDir}"); // cleanup
 			}
