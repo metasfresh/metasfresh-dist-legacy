@@ -7,6 +7,8 @@
 import de.metas.jenkins.DockerConf
 import de.metas.jenkins.Misc
 import de.metas.jenkins.MvnConf
+import de.metas.jenkins.UpstreamBuildInfo
+import de.metas.jenkins.MetasfreshVersionInfo
 
 // always offer deployment, because there might be different tasks/branches to roll out
 final skipDeploymentParamDefaultValue = false;
@@ -32,11 +34,11 @@ So if this is a "master" build, but it was invoked by a "feature-branch" build t
 			name: 'MF_UPSTREAM_BUILDNO'),
 
 		string(defaultValue: 'release_LATEST',
-			description: '''Tag/version of the metasfresh-report base image. Note: the image does not contain jasper files, so there is no need to have a particual base image for that.
+			description: '''The metasfresh-report base image. Note: the image does not contain jasper files, so there is no need to have a particual base image for that.
 <p>
 Backouground: if you e.g. specify gh47 as MF_UPSTREAM_BRANCH and a particular artifact doesn exist in that maven repo, then the maven repo at nexus is set to fall back to "master". 
 For docker we currently don not have such an arrangement.''',
-			name: 'MF_METASFRESH_REPORT_DOCKER_BASE_IMAGE_VERSION'),
+			name: 'MF_METASFRESH_REPORT_DOCKER_BASE_IMAGE'),
 
 		string(defaultValue: '',
 			description: 'Version of the metasfresh "main" code we shall use when resolving dependencies. Leave empty and this build will use the latest.',
@@ -91,6 +93,7 @@ timestamps
 
 	final MF_DOCKER_IMAGES = [:];
 	MF_DOCKER_IMAGES['metasfresh-e2e'] = params.MF_METASFRESH_E2E_DOCKER_IMAGE ?: "${MF_UPSTREAM_BRANCH}_LATEST"
+	MF_DOCKER_IMAGES['metasfresh-report-base'] = params.MF_METASFRESH_REPORT_DOCKER_BASE_IMAGE ?: "${MF_UPSTREAM_BRANCH}_LATEST"
 
 	final MF_ARTIFACT_URLS = [:];
 	String dbInitDockerImageName; // will be set if and when the docker image is created
@@ -296,5 +299,25 @@ Note: all the separately listed artifacts are also included in the dist-tar.gz
 			echo "We skip applying the migration scripts because params.MF_SQL_SEED_DUMP_URL was not set"
 		}
 	}
+
+	stage('Invoke downstream jobs')
+	{
+		final def upstreamInfo = new UpstreamBuildInfo(
+			env.BUILD_URL, // upstreamBuildURL
+			MF_UPSTREAM_BRANCH // upstreamBranch
+		);
+
+		final def versionInfo = new MetasfreshVersionInfo(
+			MF_ARTIFACT_VERSIONS['metasfresh'], // metasfreshVersion
+			MF_ARTIFACT_VERSIONS['metasfresh-procurement-webui'], // metasfreshProcurementWebuiVersion,
+			MF_ARTIFACT_VERSIONS['metasfresh-webui'], //metasfreshWebuiApiVersion,
+			MF_ARTIFACT_VERSIONS['metasfresh-webui-frontend'], // metasfreshWebuiFrontendVersion,
+			MF_DOCKER_IMAGES['metasfresh-report-base'], // reportDockerBaseImage
+			MF_DOCKER_IMAGES['metasfresh-e2e'], // metasfreshE2eDockerImage
+			MF_DOCKER_IMAGES['metasfresh-edi'] // metasfreshEdiDockerImage
+		);
+		invokeRemoteJenkins(upstreamInfo, versionInfo);
+	}
+	
 } // node
 } // timestamps
