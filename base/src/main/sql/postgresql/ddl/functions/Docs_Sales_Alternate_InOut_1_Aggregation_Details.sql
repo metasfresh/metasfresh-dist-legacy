@@ -88,8 +88,9 @@ FROM
 										AND C_BPartner_ID = ( SELECT C_BPartner_ID FROM M_InOut WHERE M_InOut_ID = $1) 
 										AND io.isActive = 'Y') io
 			INNER JOIN M_InOutLine iol ON io.M_InOut_ID = iol.M_InOut_ID AND iol.isActive = 'Y'
+			-- if the HU was set manually don't check the assignments
 			LEFT OUTER JOIN M_HU_Assignment asgn ON asgn.AD_Table_ID = ((SELECT get_Table_ID( 'M_InOutLine' ) ))
-				AND asgn.Record_ID = iol.M_InOutLine_ID AND asgn.isActive = 'Y'
+				AND asgn.Record_ID = iol.M_InOutLine_ID AND asgn.isActive = 'Y' and iol.ismanualpackingmaterial = 'N'
 			LEFT OUTER JOIN M_HU tu ON asgn.M_TU_HU_ID = tu.M_HU_ID
 	) pi 	ON iol.M_InOutLine_ID = pi.M_InOutLine_ID
 	LEFT OUTER JOIN M_HU_PI_Item_Product piip 	ON pi.M_HU_PI_Item_Product_ID = piip.M_HU_PI_Item_Product_ID AND piip.isActive = 'Y'
@@ -112,7 +113,7 @@ FROM
 	-- Moved attributes in the select block, to provide the view with an M_AttributeSetInstance_ID so it can index scan
 WHERE
 	-- Moved the filter on M_InOut_ID into a subquery to make sure, M_InOut isretrieved first, to prevent a Seq Scan on M_InOutLine_ID
-	pc.M_Product_Category_ID != getSysConfigAsNumeric('PackingMaterialProductCategoryID', iol.AD_Client_ID, iol.AD_Org_ID)
+	COALESCE(pc.M_Product_Category_ID, -1) != getSysConfigAsNumeric('PackingMaterialProductCategoryID', iol.AD_Client_ID, iol.AD_Org_ID)
 	AND QtyEntered != 0 -- Don't display lines without a Qty. See fresh_08293
 ) x
 GROUP BY

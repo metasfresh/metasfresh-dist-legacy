@@ -54,8 +54,9 @@ FROM
 		SELECT DISTINCT
 			COALESCE ( iol.M_HU_PI_Item_Product_ID, tu.M_HU_PI_Item_Product_ID ) AS M_HU_PI_Item_Product_ID, iol.M_InOutLine_ID AS M_InOutLine_ID
 		FROM	M_InOutLine iol
+			-- if the HU was set manually don't check the assignments
 			LEFT OUTER JOIN M_HU_Assignment asgn ON asgn.AD_Table_ID = ((SELECT get_Table_ID( 'M_InOutLine' ) ))
-				AND asgn.Record_ID = iol.M_InOutLine_ID AND asgn.isActive = 'Y'
+				AND asgn.Record_ID = iol.M_InOutLine_ID AND asgn.isActive = 'Y' and iol.ismanualpackingmaterial = 'N'
 			LEFT OUTER JOIN M_HU tu ON asgn.M_TU_HU_ID = tu.M_HU_ID
 			LEFT OUTER JOIN M_HU_PI_Version piv ON tu.M_HU_PI_Version_ID = piv.M_HU_PI_Version_ID AND piv.isActive = 'Y'
 		WHERE	iol.M_InOut_ID = $1 AND iol.isActive = 'Y' AND piv.M_HU_PI_Version_ID != 101
@@ -85,7 +86,7 @@ FROM
 	) att ON iol.M_AttributeSetInstance_ID = att.M_AttributeSetInstance_ID
 WHERE
 	iol.M_InOut_ID = $1
-	AND pc.M_Product_Category_ID != getSysConfigAsNumeric('PackingMaterialProductCategoryID', iol.AD_Client_ID, iol.AD_Org_ID)
+	AND COALESCE(pc.M_Product_Category_ID, -1) != getSysConfigAsNumeric('PackingMaterialProductCategoryID', iol.AD_Client_ID, iol.AD_Org_ID)
 	AND QtyEntered != 0 -- Don't display lines without a Qty. See fresh_08293
 ORDER BY
 	 iol.line, COALESCE(bpp.ProductNo, p.value)

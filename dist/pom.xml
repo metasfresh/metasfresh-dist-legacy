@@ -30,9 +30,7 @@
 		<metasfresh-webui-api.version>[1,10.0.0]</metasfresh-webui-api.version>
 		<metasfresh-procurement-webui.version>[1,10.0.0]</metasfresh-procurement-webui.version>
 		<metasfresh-admin.version>[1,10.0.0]</metasfresh-admin.version>
-
-		<!-- need to pick LATEST because there is now 1.0.0 version in our local repo. Because currently it's only build on jenkins. -->
-		<metasfresh-webui-frontend.version>LATEST</metasfresh-webui-frontend.version>
+		<metasfresh-webui-frontend.version>[1,10.0.0]</metasfresh-webui-frontend.version>
 	</properties>
 
 	<dependencies>
@@ -81,20 +79,11 @@ Since we now work with a range, we now declare the dependencies here where range
 			<type>zip</type>
 		</dependency>
 
-		<dependency>
-			<groupId>de.metas.printing.esb</groupId>
-			<artifactId>de.metas.printing.esb.camel</artifactId>
-			<version>${metasfresh.version}</version>
-		</dependency>
+
 		<dependency>
 			<groupId>de.metas.printing</groupId>
 			<artifactId>de.metas.printing.client</artifactId>
 			<classifier>jar-with-dependencies</classifier>
-			<version>${metasfresh.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>de.metas.edi.esb</groupId>
-			<artifactId>de.metas.edi.esb.camel</artifactId>
 			<version>${metasfresh.version}</version>
 		</dependency>
 		<!--
@@ -206,8 +195,8 @@ note: when adding new records, please roughly order them by alphabet.
 		</dependency>
 
 		<dependency>
-			<groupId>de.metas.commission</groupId>
-			<artifactId>de.metas.commission.base</artifactId>
+			<groupId>de.metas.business</groupId>
+			<artifactId>de.metas.business.rest-api</artifactId>
 			<version>${metasfresh.version}</version>
 			<classifier>migration-postgres-sql</classifier>
 			<type>zip</type>
@@ -334,6 +323,44 @@ note: when adding new records, please roughly order them by alphabet.
 		</dependency>
 
 		<dependency>
+			<groupId>de.metas.marketing</groupId>
+			<artifactId>marketing-base</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+		<dependency>
+			<groupId>de.metas.marketing</groupId>
+			<artifactId>marketing-cleverreach</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+		<dependency>
+			<groupId>de.metas.marketing</groupId>
+			<artifactId>marketing-serialletter </artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+
+		<dependency>
+			<groupId>de.metas.vertical.creditscore</groupId>
+			<artifactId>metasfresh-creditscore-creditpass</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+
+		<dependency>
+			<groupId>de.metas.material</groupId>
+			<artifactId>metasfresh-material-cockpit</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+
+		<dependency>
 			<groupId>de.metas.material</groupId>
 			<artifactId>metasfresh-material-dispo-service</artifactId>
 			<version>${metasfresh.version}</version>
@@ -368,6 +395,14 @@ note: when adding new records, please roughly order them by alphabet.
 		<dependency>
 			<groupId>de.metas.payment.sepa</groupId>
 			<artifactId>de.metas.payment.sepa</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+
+		<dependency>
+			<groupId>de.metas.payment.paypal</groupId>
+			<artifactId>de.metas.payment.paypal</artifactId>
 			<version>${metasfresh.version}</version>
 			<classifier>migration-postgres-sql</classifier>
 			<type>zip</type>
@@ -418,33 +453,44 @@ note: when adding new records, please roughly order them by alphabet.
 		</dependency>
 
 		<dependency>
-			<groupId>de.metas.swat</groupId>
-			<artifactId>de.metas.swat.base</artifactId>
-			<version>${metasfresh.version}</version>
-			<classifier>migration-postgres-sql</classifier>
-			<type>zip</type>
-		</dependency>
-		
-		<dependency>
 			<groupId>de.metas.purchasecandidate</groupId>
 			<artifactId>de.metas.purchasecandidate.base</artifactId>
 			<version>${metasfresh.version}</version>
 			<classifier>migration-postgres-sql</classifier>
 			<type>zip</type>
 		</dependency>
-
-
 		<dependency>
-			<groupId>de.metas.ui.web</groupId>
-			<artifactId>de.metas.ui.web.base</artifactId>
+			<groupId>de.metas.salescandidate</groupId>
+			<artifactId>de.metas.salescandidate.base</artifactId>
 			<version>${metasfresh.version}</version>
 			<classifier>migration-postgres-sql</classifier>
 			<type>zip</type>
 		</dependency>
-		
 		<dependency>
-			<groupId>de.metas.vertical.pharma</groupId>
-			<artifactId>metasfresh-pharma</artifactId>
+			<groupId>de.metas.shipper.gateway</groupId>
+			<artifactId>de.metas.shipper.gateway.derkurier</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+		<dependency>
+			<groupId>de.metas.shipper.gateway</groupId>
+			<artifactId>de.metas.shipper.gateway.dhl</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+		<dependency>
+			<groupId>de.metas.shipper.gateway</groupId>
+			<artifactId>de.metas.shipper.gateway.go</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+
+		<dependency>
+			<groupId>de.metas.datev</groupId>
+			<artifactId>metasfresh-datev</artifactId>
 			<version>${metasfresh.version}</version>
 			<classifier>migration-postgres-sql</classifier>
 			<type>zip</type>
@@ -464,6 +510,77 @@ note: when adding new records, please roughly order them by alphabet.
 			<version>${metasfresh.version}</version>
 			<classifier>migration-postgres-sql</classifier>
 			<type>zip</type>
+		</dependency>
+
+		<dependency>
+			<groupId>de.metas.inbound</groupId>
+			<artifactId>de.metas.inbound.mail</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+
+		<dependency>
+			<groupId>de.metas.swat</groupId>
+			<artifactId>de.metas.swat.base</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+
+		<dependency>
+			<groupId>de.metas.ui.web</groupId>
+			<artifactId>de.metas.ui.web.base</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+
+		<dependency>
+			<groupId>de.metas.vertical.pharma</groupId>
+			<artifactId>metasfresh-pharma</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+		<dependency>
+			<groupId>de.metas.vertical.pharma</groupId>
+			<artifactId>metasfresh-pharma.vendor.gateway.msv3</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+		<dependency>
+			<groupId>de.metas.vertical.pharma</groupId>
+			<artifactId>metasfresh-pharma.msv3.server-peer-metasfresh</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+		<dependency>
+			<groupId>de.metas.vertical.pharma</groupId>
+			<artifactId>metasfresh-pharma.securpharm</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+
+		<dependency>
+			<groupId>de.metas.vertical.healthcare_ch</groupId>
+			<artifactId>vertical-healthcare_ch.forum_datenaustausch_ch.invoice_base</artifactId>
+			<version>${metasfresh.version}</version>
+			<classifier>migration-postgres-sql</classifier>
+			<type>zip</type>
+		</dependency>
+
+		<!-- Thx for the two fonts to http://ansuz.sooke.bc.ca/page/fonts ^^ -->
+		<dependency>
+			<groupId>jp.osdn.ocra</groupId>
+			<artifactId>jp.osdn.ocra</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>jp.osdn.ocrb</groupId>
+			<artifactId>jp.osdn.ocrb</artifactId>
 		</dependency>
 
 	</dependencies>
@@ -493,28 +610,6 @@ note: when adding new records, please roughly order them by alphabet.
 								<jenkinsBuildUrl>${env.BUILD_URL}</jenkinsBuildUrl>
 								<jenkinsJobName>${env.JOB_NAME}</jenkinsJobName>
 							</additionalProperties>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<artifactId>maven-resources-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>copy-misc-files</id>
-						<phase>prepare-package</phase>
-						<goals>
-							<goal>copy-resources</goal>
-						</goals>
-						<configuration>
-							<outputDirectory>${project.build.directory}/dist/misc</outputDirectory>
-							<resources>
-								<resource>
-									<directory>src/main/misc</directory>
-									<filtering>true</filtering>
-								</resource>
-							</resources>
 						</configuration>
 					</execution>
 				</executions>
@@ -605,14 +700,14 @@ note: when adding new records, please roughly order them by alphabet.
 							<stripVersion>${de.metas.endcustomer.stripVersion}</stripVersion>
 							<artifactItems>
 								<artifactItem>
-									<groupId>${project.groupId}</groupId>
+									<groupId>de.metas.dist</groupId>
 									<artifactId>metasfresh-dist-serverRoot</artifactId>
 									<version>${project.version}</version>
 									<outputDirectory>${project.build.directory}/dist/deploy</outputDirectory>
 									<destFileName>metasfresh_server.jar</destFileName>
 								</artifactItem>
 								<artifactItem>
-									<groupId>${project.groupId}</groupId>
+									<groupId>de.metas.dist</groupId>
 									<artifactId>metasfresh-dist-swingui</artifactId>
 									<classifier>client</classifier>
 									<version>${project.version}</version>
@@ -647,7 +742,7 @@ note: when adding new records, please roughly order them by alphabet.
 					</execution>
 
 					<!--
-						Build deploy/download folder with procurement-webui and some camel ESB modules. Those binary are only needed in some scenarior
+						Build deploy/download folder with procurement-webui. Those binaries are only needed in some scenarios
 						We specified these artifacts as dependencies further up. Therefore they were already resolved and now we only need to grab 'em by the artifactid without having to specify a particular version.
 					-->
 					<execution>
@@ -659,8 +754,6 @@ note: when adding new records, please roughly order them by alphabet.
 						<configuration>
 							<outputDirectory>${project.build.directory}/dist/deploy/download</outputDirectory>
 							<includeArtifactIds>
-								de.metas.printing.esb.camel,
-								de.metas.edi.esb.camel,
 								de.metas.procurement.webui
 							</includeArtifactIds>
 							<excludeTransitive>true</excludeTransitive>
@@ -797,6 +890,104 @@ note: when adding new records, please roughly order them by alphabet.
 						</configuration>
 					</execution>
 
+					<!-- copy external-lib
+						We specified these artifacts as dependencies further up. Therefore they were already resolved and now we only need to grab 'em by the artifactid without having to specify a particular version.
+					-->
+					<execution>
+						<id>copy-metasfresh-external-lib-for-docker-build</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${docker.build.directory}/report/external-lib</outputDirectory>
+							<includeArtifactIds>jp.osdn.ocra,jp.osdn.ocrb</includeArtifactIds>
+							<excludeTransitive>true</excludeTransitive>
+							<overWriteReleases>true</overWriteReleases>
+							<overWriteSnapshots>true</overWriteSnapshots>
+						</configuration>
+					</execution>
+					
+				</executions>
+			</plugin>
+
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-misc-files</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/dist/misc</outputDirectory>
+							<resources>
+								<resource>
+									<directory>src/main/misc</directory>
+									<filtering>true</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+					
+					<!-- copy the jasper files that were prepared by the maven-dependency-plugin, so they become part of the metasfresh-app docker image -->
+					<execution>
+						<id>copy-jasper-folder-for-app-docker-build</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${docker.build.directory}/app/reports</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${project.build.directory}/dist/deploy/reports</directory>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+
+					<!-- copy the jasper files that were prepared by the maven-dependency-plugin, so they become part of the metasfresh-dist-report docker image -->
+					<execution>
+						<id>copy-jasper-folder-for-report-docker-build</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${docker.build.directory}/report/reports</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${project.build.directory}/dist/deploy/reports</directory>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+					
+					<!-- copy the metasfresh_server.jar that was prepared by the 
+					     maven-dependency-plugin with <id>copy-main-deployables</id>-->
+					<execution>
+						<id>copy-metasfresh-jar-for-docker-build</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${docker.build.directory}/app</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${project.build.directory}/dist/deploy</directory>
+									<includes>
+										<include>metasfresh_server.jar</include>
+									</includes>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
@@ -825,6 +1016,18 @@ note: when adding new records, please roughly order them by alphabet.
 						<configuration>
 							<descriptors>
 								<descriptor>src/main/assembly/sql-only.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+					<execution>
+						<id>package-jasper</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<descriptors>
+								<descriptor>src/main/assembly/jasper.xml</descriptor>
 							</descriptors>
 						</configuration>
 					</execution>

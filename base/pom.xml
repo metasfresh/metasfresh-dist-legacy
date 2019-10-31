@@ -1,6 +1,5 @@
-<project 
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" 
-	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
@@ -30,13 +29,6 @@
 			<version>${metasfresh.version}</version>
 		</dependency>
 
-		<!-- this is required when we run with -Dorg.adempiere.server.embedded=true -->
-		<dependency>
-			<groupId>de.metas.adempiere.adempiere</groupId>
-			<artifactId>de.metas.adempiere.adempiere.serverRoot.base</artifactId>
-			<version>${metasfresh.version}</version>
-		</dependency>
-
 		<!--
 		Dependency needed in case you want to use de.metas.adempiere.report.jasper.server.LocalJasperServer.
 		i.e. a developer wants to use embedded jasper server while working/debugging in eclipse.
@@ -48,13 +40,18 @@
 			<version>${metasfresh.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>de.metas.vertical.pharma</groupId>
 			<artifactId>metasfresh-pharma</artifactId>
 			<version>${metasfresh.version}</version>
 		</dependency>
-
+		<dependency>
+			<groupId>de.metas.vertical.pharma</groupId>
+			<artifactId>metasfresh-pharma.msv3.server-peer-metasfresh</artifactId>
+			<version>${metasfresh.version}</version>
+		</dependency>
+		
 		<!-- Thx for the two fonts to http://ansuz.sooke.bc.ca/page/fonts ^^ -->
 		<dependency>
 			<groupId>jp.osdn.ocra</groupId>

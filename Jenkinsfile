@@ -4,18 +4,24 @@
 
 // note that we set a default version for this library in jenkins, so we don't have to specify it here
 @Library('misc')
-import de.metas.jenkins.MvnConf
+import de.metas.jenkins.DockerConf
 import de.metas.jenkins.Misc
+import de.metas.jenkins.MvnConf
 
 // always offer deployment, because there might be different tasks/branches to roll out
 final skipDeploymentParamDefaultValue = false;
+
+final String MF_SQL_SEED_DUMP_URL_DEFAULT = 
+	env.BRANCH_NAME == 'release' 
+		? 'https://metasfresh.com/wp-content/releases/db_seeds/metasfresh-5_39.pgdump' 
+		: 'https://metasfresh.com/wp-content/releases/db_seeds/metasfresh_latest.pgdump'
 
 // thx to http://stackoverflow.com/a/36949007/1012103 with respect to the paramters
 properties([
 	parameters([
 		string(defaultValue: '',
 			description: '''If this job is invoked via an updstream build job, then that job can provide either its branch or the respective <code>MF_UPSTREAM_BRANCH</code> that was passed to it.<br>
-This build will then attempt to use maven dependencies from that branch, and it will sets its own name to reflect the given value.
+This build will then attempt to use maven dependencies from that branch, and it will set its own name to reflect the given value.
 <p>
 So if this is a "master" build, but it was invoked by a "feature-branch" build then this build will try to get the feature-branch\'s build artifacts annd will set its
 <code>currentBuild.displayname</code> and <code>currentBuild.description</code> to make it obvious that the build contains code from the feature branch.''',
@@ -24,6 +30,13 @@ So if this is a "master" build, but it was invoked by a "feature-branch" build t
 		string(defaultValue: '',
 			description: 'Build number of the upstream job that called us, if any.',
 			name: 'MF_UPSTREAM_BUILDNO'),
+
+		string(defaultValue: 'release_LATEST',
+			description: '''Tag/version of the metasfresh-report base image. Note: the image does not contain jasper files, so there is no need to have a particual base image for that.
+<p>
+Backouground: if you e.g. specify gh47 as MF_UPSTREAM_BRANCH and a particular artifact doesn exist in that maven repo, then the maven repo at nexus is set to fall back to "master". 
+For docker we currently don not have such an arrangement.''',
+			name: 'MF_METASFRESH_REPORT_DOCKER_BASE_IMAGE_VERSION'),
 
 		string(defaultValue: '',
 			description: 'Version of the metasfresh "main" code we shall use when resolving dependencies. Leave empty and this build will use the latest.',
@@ -43,35 +56,56 @@ So if this is a "master" build, but it was invoked by a "feature-branch" build t
 
 		string(defaultValue: '',
 			description: 'Version of the metasfresh-webui-frontend webui to include in the distribution. Leave empty and this build will use the latest.',
-			name: 'MF_METASFRESH_WEBUI_FRONTEND_VERSION')
+			name: 'MF_METASFRESH_WEBUI_FRONTEND_VERSION'),
+
+		string(defaultValue: '',
+			description: 'metasfresh-edi (camel) docker image. Leave empty and this build will <code>&gt;effective-branch-name&lt;_LATEST</code>',
+			name: 'MF_METASFRESH_EDI_DOCKER_IMAGE'),
+
+		string(defaultValue: '',
+			description: 'e2e docker image. Leave empty and this build will <code>&lt;effective-branch-name&gt;_LATEST</code>',
+			name: 'MF_METASFRESH_E2E_DOCKER_IMAGE'),
+
+		string(defaultValue: MF_SQL_SEED_DUMP_URL_DEFAULT,
+			description: 'metasfresh database seed against which the build shall apply its migrate scripts for QA; leave empty to avoid this QA.',
+			name: 'MF_SQL_SEED_DUMP_URL')
+
 	]),
 	pipelineTriggers([]),
 	buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20')) // keep the last 20 builds
 ])
-
-// gh #968 make create a map equal to the one we create in metasfresh/Jenkinsfile. The way we used it further down is also similar
-final MF_ARTIFACT_VERSIONS = [:];
-MF_ARTIFACT_VERSIONS['metasfresh'] = params.MF_METASFRESH_VERSION ?: "LATEST";
-MF_ARTIFACT_VERSIONS['metasfresh-admin'] = params.MF_METASFRESH_ADMIN_VERSION ?: "LATEST";
-MF_ARTIFACT_VERSIONS['metasfresh-procurement-webui'] = params.MF_METASFRESH_PROCUREMENT_WEBUI_VERSION ?: "LATEST";
-MF_ARTIFACT_VERSIONS['metasfresh-webui'] = params.MF_METASFRESH_WEBUI_API_VERSION ?: "LATEST";
-MF_ARTIFACT_VERSIONS['metasfresh-webui-frontend'] = params.MF_METASFRESH_WEBUI_FRONTEND_VERSION ?: "LATEST";
-
 
 timestamps
 {
 	MF_UPSTREAM_BRANCH = params.MF_UPSTREAM_BRANCH ?: env.BRANCH_NAME
 	echo "params.MF_UPSTREAM_BRANCH=${params.MF_UPSTREAM_BRANCH}; env.BRANCH_NAME=${env.BRANCH_NAME}; => MF_UPSTREAM_BRANCH=${MF_UPSTREAM_BRANCH}"
 
+	// gh #968 create a map equal to the one we create in metasfresh/Jenkinsfile. The way we use it further down is also similar
+	final MF_ARTIFACT_VERSIONS = [:];
+	MF_ARTIFACT_VERSIONS['metasfresh'] = params.MF_METASFRESH_VERSION ?: "LATEST";
+	MF_ARTIFACT_VERSIONS['metasfresh-admin'] = params.MF_METASFRESH_ADMIN_VERSION ?: "LATEST";
+	MF_ARTIFACT_VERSIONS['metasfresh-procurement-webui'] = params.MF_METASFRESH_PROCUREMENT_WEBUI_VERSION ?: "LATEST";
+	MF_ARTIFACT_VERSIONS['metasfresh-webui'] = params.MF_METASFRESH_WEBUI_API_VERSION ?: "LATEST";
+	MF_ARTIFACT_VERSIONS['metasfresh-webui-frontend'] = params.MF_METASFRESH_WEBUI_FRONTEND_VERSION ?: "LATEST";
+
+	final def misc = new de.metas.jenkins.Misc();
+	
+	final String fallbackDockerTag =  misc.mkDockerTag("${MF_UPSTREAM_BRANCH}_LATEST")
+	final MF_DOCKER_IMAGES = [:];
+	MF_DOCKER_IMAGES['metasfresh-e2e'] = params.MF_METASFRESH_E2E_DOCKER_IMAGE ?: "nexus.metasfresh.com:6001/metasfresh/metasfresh-e2e:${fallbackDockerTag}"
+	MF_DOCKER_IMAGES['metasfresh-edi'] = params.MF_METASFRESH_EDI_DOCKER_IMAGE ?: "nexus.metasfresh.com:6001/metasfresh/de-metas-edi-esb-camel:${fallbackDockerTag}"
+
+	final MF_ARTIFACT_URLS = [:];
+	String dbInitDockerImageName; // will be set if and when the docker image is created
+
+
 	// https://github.com/metasfresh/metasfresh/issues/2110 make version/build infos more transparent
 	final String MF_VERSION = retrieveArtifactVersion(MF_UPSTREAM_BRANCH, env.BUILD_NUMBER)
 	currentBuild.displayName = "artifact-version ${MF_VERSION}";
 
-	final def misc = new de.metas.jenkins.Misc();
 	final String MF_RELEASE_VERSION = misc.extractReleaseVersion(MF_VERSION)
 
-// to build the client-exe on linux, we need 32bit libs!
-node('agent && linux && libc6-i386')
+node('agent && linux')
 {
 	configFileProvider([configFile(fileId: 'metasfresh-global-maven-settings', replaceTokens: true, variable: 'MAVEN_SETTINGS')])
 	{
@@ -113,11 +147,12 @@ node('agent && linux && libc6-i386')
 				final inSquaresIfNeeded = { String version -> return version == "LATEST" ? version: "[${version}]"; }
 
 				// the square brackets in "-DnewVersion" are required if we have a concrete version (i.e. not "LATEST"); see https://github.com/mojohaus/versions-maven-plugin/issues/141 for details
-				final String metasfreshAdminPropertyParam="-Dproperty=metasfresh-admin.version -DnewVersion=${inSquaresIfNeeded(MF_ARTIFACT_VERSIONS['metasfresh-admin'])}";
-				final String metasfreshWebFrontEndUpdatePropertyParam = "-Dproperty=metasfresh-webui-frontend.version -DnewVersion=${inSquaresIfNeeded(MF_ARTIFACT_VERSIONS['metasfresh-webui-frontend'])}";
-				final String metasfreshWebApiUpdatePropertyParam = "-Dproperty=metasfresh-webui-api.version -DnewVersion=${inSquaresIfNeeded(MF_ARTIFACT_VERSIONS['metasfresh-webui'])}";
-				final String metasfreshProcurementWebuiUpdatePropertyParam = "-Dproperty=metasfresh-procurement-webui.version -DnewVersion=${inSquaresIfNeeded(MF_ARTIFACT_VERSIONS['metasfresh-procurement-webui'])}";
-				final String metasfreshUpdatePropertyParam="-Dproperty=metasfresh.version -DnewVersion=${inSquaresIfNeeded(MF_ARTIFACT_VERSIONS['metasfresh'])}";
+				final String metasfreshAdminPropertyParam="-Dproperty=metasfresh-admin.version -DnewVersion=${inSquaresIfNeeded(MF_ARTIFACT_VERSIONS['metasfresh-admin'])}"
+				final String metasfreshWebFrontEndUpdatePropertyParam = "-Dproperty=metasfresh-webui-frontend.version -DnewVersion=${inSquaresIfNeeded(MF_ARTIFACT_VERSIONS['metasfresh-webui-frontend'])}"
+				final String metasfreshWebApiUpdatePropertyParam = "-Dproperty=metasfresh-webui-api.version -DnewVersion=${inSquaresIfNeeded(MF_ARTIFACT_VERSIONS['metasfresh-webui'])}"
+				final String metasfreshProcurementWebuiUpdatePropertyParam = "-Dproperty=metasfresh-procurement-webui.version -DnewVersion=${inSquaresIfNeeded(MF_ARTIFACT_VERSIONS['metasfresh-procurement-webui'])}"
+				final String metasfreshUpdatePropertyParam="-Dproperty=metasfresh.version -DnewVersion=${inSquaresIfNeeded(MF_ARTIFACT_VERSIONS['metasfresh'])}"
+
 
 				// update the metasfresh.version property. either to the latest version or to the given params.MF_METASFRESH_VERSION.
 				sh "mvn --settings ${mvnConf.settingsFile} --file ${mvnConf.pomFile} --batch-mode ${mvnConf.resolveParams} ${metasfreshUpdatePropertyParam} versions:update-property"
@@ -151,12 +186,12 @@ node('agent && linux && libc6-i386')
 				final def mavenProps = readProperties file: 'dist/app.properties'
 				final def urlEncodedMavenProps = misc.urlEncodeMapValues(mavenProps);
 
-				final def MF_ARTIFACT_URLS = [:];
 				MF_ARTIFACT_URLS['metasfresh-admin'] = "${mvnConf.resolveRepoURL}/de/metas/admin/metasfresh-admin/${urlEncodedMavenProps['metasfresh-admin.version']}/metasfresh-admin-${urlEncodedMavenProps['metasfresh-admin.version']}.jar"
-				MF_ARTIFACT_URLS['metasfresh-dist'] =  "${mvnConf.deployRepoURL}/de/metas/dist/metasfresh-dist-dist/${misc.urlEncode(MF_VERSION)}/metasfresh-dist-dist-${misc.urlEncode(MF_VERSION)}-dist.tar.gz"
-				MF_ARTIFACT_URLS['metasfresh-material-dispo']=  "${mvnConf.resolveRepoURL}/de/metas/material/metasfresh-material-dispo-service/${urlEncodedMavenProps['metasfresh.version']}/metasfresh-material-dispo-service-${urlEncodedMavenProps['metasfresh.version']}.jar"
-				MF_ARTIFACT_URLS['metasfresh-procurement-webui']=  "${mvnConf.resolveRepoURL}/de/metas/procurement/de.metas.procurement.webui/${urlEncodedMavenProps['metasfresh-procurement-webui.version']}/de.metas.procurement.webui-${urlEncodedMavenProps['metasfresh-procurement-webui.version']}.jar"
-				MF_ARTIFACT_URLS['metasfresh-webui'] =  "${mvnConf.resolveRepoURL}/de/metas/ui/web/metasfresh-webui-api/${urlEncodedMavenProps['metasfresh-webui-api.version']}/metasfresh-webui-api-${urlEncodedMavenProps['metasfresh-webui-api.version']}.jar"
+				MF_ARTIFACT_URLS['metasfresh-dist'] = "${mvnConf.deployRepoURL}/de/metas/dist/metasfresh-dist-dist/${misc.urlEncode(MF_VERSION)}/metasfresh-dist-dist-${misc.urlEncode(MF_VERSION)}-dist.tar.gz"
+				MF_ARTIFACT_URLS['metasfresh-dist-sql-only'] = "${mvnConf.deployRepoURL}/de/metas/dist/metasfresh-dist-dist/${misc.urlEncode(MF_VERSION)}/metasfresh-dist-dist-${misc.urlEncode(MF_VERSION)}-sql-only.tar.gz"
+				MF_ARTIFACT_URLS['metasfresh-material-dispo'] = "${mvnConf.resolveRepoURL}/de/metas/material/metasfresh-material-dispo-service/${urlEncodedMavenProps['metasfresh.version']}/metasfresh-material-dispo-service-${urlEncodedMavenProps['metasfresh.version']}.jar"
+				MF_ARTIFACT_URLS['metasfresh-procurement-webui'] = "${mvnConf.resolveRepoURL}/de/metas/procurement/de.metas.procurement.webui/${urlEncodedMavenProps['metasfresh-procurement-webui.version']}/de.metas.procurement.webui-${urlEncodedMavenProps['metasfresh-procurement-webui.version']}.jar"
+				MF_ARTIFACT_URLS['metasfresh-webui'] = "${mvnConf.resolveRepoURL}/de/metas/ui/web/metasfresh-webui-api/${urlEncodedMavenProps['metasfresh-webui-api.version']}/metasfresh-webui-api-${urlEncodedMavenProps['metasfresh-webui-api.version']}.jar"
 				MF_ARTIFACT_URLS['metasfresh-webui-frontend'] = "${mvnConf.resolveRepoURL}/de/metas/ui/web/metasfresh-webui-frontend/${urlEncodedMavenProps['metasfresh-webui-frontend.version']}/metasfresh-webui-frontend-${urlEncodedMavenProps['metasfresh-webui-frontend.version']}.tar.gz"
 
 				// Note: for the rollout-job's URL with the 'parambuild' to work on this pipelined jenkins, we need the https://wiki.jenkins-ci.org/display/JENKINS/Build+With+Parameters+Plugin, and *not* version 1.3, but later.
@@ -164,7 +199,12 @@ node('agent && linux && libc6-i386')
 				//  * https://github.com/jenkinsci/build-with-parameters-plugin/pull/10
 				//  * https://jenkins.ci.cloudbees.com/job/plugins/job/build-with-parameters-plugin/15/org.jenkins-ci.plugins$build-with-parameters/
 
-				final String releaseLinkWithText = misc.createReleaseLinkWithText(MF_UPSTREAM_BRANCH, MF_RELEASE_VERSION, MF_VERSION, MF_ARTIFACT_URLS);
+				String releaseLinkWithText = "	<li>..and ${misc.createReleaseLinkWithText(MF_RELEASE_VERSION, MF_VERSION, MF_ARTIFACT_URLS, MF_DOCKER_IMAGES)}</li>";
+				if(MF_UPSTREAM_BRANCH == 'release')
+				{
+					releaseLinkWithText = """	${releaseLinkWithText}
+	<li>..aaand ${misc.createWeeklyReleaseLinkWithText(MF_RELEASE_VERSION, MF_VERSION, MF_ARTIFACT_URLS, MF_DOCKER_IMAGES)}</li>"""
+				} 
 
 				currentBuild.description="""
 <h3>Version infos</h3>
@@ -180,10 +220,10 @@ node('agent && linux && libc6-i386')
   </ul>
 </ul>
 <p>
-<h3>Deployable artifacts</h3>
+<h3>Deployable maven artifacts</h3>
 <ul>
 	<li><a href=\"${MF_ARTIFACT_URLS['metasfresh-dist']}\">dist-tar.gz</a></li>
-	<li><a href=\"${mvnConf.deployRepoURL}/de/metas/dist/metasfresh-dist-dist/${misc.urlEncode(MF_VERSION)}/metasfresh-dist-dist-${misc.urlEncode(MF_VERSION)}-sql-only.tar.gz\">sql-only-tar.gz</a></li>
+	<li><a href=\"${MF_ARTIFACT_URLS['metasfresh-dist-sql-only']}\">sql-only-tar.gz</a></li>
 	<li><a href=\"${mvnConf.deployRepoURL}/de/metas/dist/metasfresh-dist-swingui/${misc.urlEncode(MF_VERSION)}/metasfresh-dist-swingui-${misc.urlEncode(MF_VERSION)}-client.zip\">client.zip</a></li>
 	<li><a href=\"${MF_ARTIFACT_URLS['metasfresh-webui']}\">metasfresh-webui-api.jar</a></li>
 	<li><a href=\"${MF_ARTIFACT_URLS['metasfresh-webui-frontend']}\">metasfresh-webui-frontend.tar.gz</a></li>
@@ -195,8 +235,9 @@ Note: all the separately listed artifacts are also included in the dist-tar.gz
 <p>
 <h3>Deploy</h3>
 <ul>
-	<li><a href=\"https://jenkins.metasfresh.com/job/ops/job/deploy_metasfresh/parambuild/?MF_ROLLOUT_FILE_URL=${MF_ARTIFACT_URLS['metasfresh-dist']}&MF_UPSTREAM_BUILD_URL=${BUILD_URL}\"><b>This link</b></a> lets you jump to a rollout job that will deploy (roll out) the tar.gz to a host of your choice.</li>
-	<li>..and ${releaseLinkWithText}</li>
+	<li><a href=\"https://jenkins.metasfresh.com/job/ops/job/deploy_metasfresh/parambuild/?MF_ROLLOUT_FILE_URL=${MF_ARTIFACT_URLS['metasfresh-dist']}&MF_UPSTREAM_BUILD_URL=${BUILD_URL}\"><b>This link</b></a> lets you jump to a rollout job that will deploy (roll out) the <b>tar.gz to a host of your choice</b>.</li>
+	${releaseLinkWithText}
+	<li>Oh, and <a href=\"https://jenkins.metasfresh.com/job/ops/job/run_e2e_tests/parambuild/?MF_DOCKER_IMAGE_FULL_NAME=${MF_DOCKER_IMAGES['metasfresh-e2e']}&MF_UPSTREAM_BUILD_URL=${BUILD_URL}&MF_DOCKER_REGISTRY=&MF_DOCKER_IMAGE=\"><b>this link</b></a> lets you jump to a job that will perform an <b>e2e-test</b> using the upstream metasfresh-e2e tests.</li>
 </ul>
 <p>
 <h3>Additional notes</h3>
@@ -211,90 +252,59 @@ Note: all the separately listed artifacts are also included in the dist-tar.gz
 		} // withEnv
 	} // configFileProvider
 
-	// clean up the workspace after (successfull) builds
-	cleanWs cleanWhenAborted: false, cleanWhenFailure: false
+	stage('Build&Push docker images')
+	{
+		// app
+		final DockerConf appDockerConf = new DockerConf(
+						'metasfresh-dist-app', // artifactName
+						MF_UPSTREAM_BRANCH, // branchName
+						MF_VERSION, // versionSuffix
+						'dist/target/docker/app') // workDir
+		final String publishedDistAppImageName = dockerBuildAndPush(appDockerConf)
 
+		// report
+		final String reportDockerBaseImageRepo = 'metasfresh-report-dev'
+		final String reportDockerBaseImageTag = misc.mkDockerTag("${params.MF_METASFRESH_REPORT_DOCKER_BASE_IMAGE_VERSION}")
+		final String reportAdditionalBuildArgs = "--build-arg BASE_IMAGE_REPO=${reportDockerBaseImageRepo} --build-arg BASE_IMAGE_VERSION=${reportDockerBaseImageTag}"
+
+		final DockerConf reportDockerConf = appDockerConf
+						.withArtifactName('metasfresh-dist-report')
+						.withWorkDir('dist/target/docker/report')
+						.withAdditionalBuildArgs(reportAdditionalBuildArgs)
+		final String publishedReportDockerImageName = dockerBuildAndPush(reportDockerConf)				
+
+		// postgres DB init container
+		final DockerConf dbInitDockerConf = appDockerConf
+						.withArtifactName('metasfresh-db-init-pg-9-5')
+						.withWorkDir('dist/target/docker/db-init')
+		dbInitDockerImageName = dockerBuildAndPush(dbInitDockerConf)
+
+		currentBuild.description= """${currentBuild.description}<p/>
+			<h3>Docker</h3>
+			This build created the following deployable docker images 
+			<ul>
+			<li><code>${publishedReportDockerImageName}</code> with base-image <code>metasfresh/${reportDockerBaseImageRepo}:${reportDockerBaseImageTag}</code></li>
+			<li><code>${publishedDistAppImageName}</code></li>
+			<li><code>${dbInitDockerImageName}</code></li>
+			</ul>
+			"""
+
+		// clean up the workspace after (successfull) builds
+		cleanWs cleanWhenAborted: false, cleanWhenFailure: false
+	}
+
+	stage('Test SQL-Migration (docker)')
+	{
+		if(params.MF_SQL_SEED_DUMP_URL)
+		{
+			// run the pg-init docker image to check that the migration scripts work; make sure to clean up afterwards
+			sh "docker run --rm -e \"URL_SEED_DUMP=${params.MF_SQL_SEED_DUMP_URL}\" -e \"URL_MIGRATION_SCRIPTS_PACKAGE=${MF_ARTIFACT_URLS['metasfresh-dist-sql-only']}\" ${dbInitDockerImageName}"
+			sh "docker rmi ${dbInitDockerImageName}"
+		}
+		else
+		{
+			echo "We skip applying the migration scripts because params.MF_SQL_SEED_DUMP_URL was not set"
+		}
+	}
 } // node
-
-// we need this one for both "Test-SQL" and "Deployment
-def downloadForDeployment = { String groupId, String artifactId, String version, String packaging, String classifier, String sshTargetHost, String sshTargetUser ->
-
-	final packagingPart=packaging ? ":${packaging}" : ""
-	final classifierPart=classifier ? ":${classifier}" : ""
-	final artifact = "${groupId}:${artifactId}:${version}${packagingPart}${classifierPart}"
-
-	// we need configFileProvider because in mvn get -DremoteRepositories=https://repo.metasfresh.com/repository/mvn-public is ignored.
-	// See http://maven.apache.org/plugins/maven-dependency-plugin/get-mojo.html "Caveat: will always check thecentral repository defined in the super pom"
-	configFileProvider([configFile(fileId: 'metasfresh-global-maven-settings', replaceTokens: true, variable: 'MAVEN_SETTINGS')])
-	{
-		final MvnConf mvnDeployConf = new MvnConf(
-			'pom.xml', // pomFile
-			MAVEN_SETTINGS, // settingsFile
-			"mvn-${MF_UPSTREAM_BRANCH}", // mvnRepoName
-			'https://repo.metasfresh.com' // mvnRepoBaseURL - resolve and deploy
-		)
-		echo "mvnDeployConf=${mvnDeployConf}"
-
-		withMaven(jdk: 'java-8', maven: 'maven-3.3.9', mavenLocalRepo: '.repository')
-		{
-			sh "mvn --settings ${mvnDeployConf.settingsFile} org.apache.maven.plugins:maven-dependency-plugin:2.10:get -Dtransitive=false -Dartifact=${artifact} ${mvnDeployConf.resolveParams}"
-
-			// copy the artifact to a deploy folder.
-			sh "mvn --settings ${mvnDeployConf.settingsFile} org.apache.maven.plugins:maven-dependency-plugin:2.10:copy -Dartifact=${artifact} -DoutputDirectory=deploy -Dmdep.stripClassifier=false -Dmdep.stripVersion=false ${mvnDeployConf.resolveParams}"
-		}
-	}
-	sh "scp ${WORKSPACE}/deploy/${artifactId}-${version}-${classifier}.${packaging} ${sshTargetUser}@${sshTargetHost}:/home/${sshTargetUser}/${artifactId}-${version}-${classifier}.${packaging}"
-}
-
-// we need this one for both "Test-SQL" and "Deployment
-def invokeRemote = { String sshTargetHost, String sshTargetUser, String directory, String shellScript ->
-
-// no echo needed: the log already shows what's done via the sh step
-//	echo "Going to invoke the following as user ${sshTargetUser} on host ${sshTargetHost} in directory ${directory}:";
-//	echo "${shellScript}"
-	sh "ssh ${sshTargetUser}@${sshTargetHost} \"cd ${directory} && ${shellScript}\""
-}
-
-
-stage('Test SQL-Migration')
-{
-	if(params.MF_SKIP_SQL_MIGRATION_TEST)
-	{
-		echo "We skip the deployment step because params.MF_SKIP_SQL_MIGRATION_TEST=${params.MF_SKIP_SQL_MIGRATION_TEST}"
-	}
-	else
-	{
-		node('linux')
-		{
-			sshagent(['jenkins-ssh-key'])
-			{
-				final distArtifactId='metasfresh-dist-dist';
-				final classifier='sql-only';
-				final packaging='tar.gz';
-				final sshTargetHost='mf15cloudit'; // we made sure the mf15cloudit can be resolved on every jenkins node labeled with 'linux'
-				final sshTargetUser='metasfresh'
-
-				downloadForDeployment('de.metas.dist', distArtifactId, MF_VERSION, packaging, classifier, sshTargetHost, sshTargetUser);
-
-				final fileAndDirName="${distArtifactId}-${MF_VERSION}-${classifier}"
-				final deployDir="/home/${sshTargetUser}/${fileAndDirName}-${MF_UPSTREAM_BRANCH}"
-
-				// Look Ma, I'm currying!!
-				final invokeRemoteInHomeDir = invokeRemote.curry(sshTargetHost, sshTargetUser, "/home/${sshTargetUser}");
-				invokeRemoteInHomeDir("mkdir -p ${deployDir} && mv ${fileAndDirName}.${packaging} ${deployDir} && cd ${deployDir} && tar -xf ${fileAndDirName}.${packaging}")
-
-				final invokeRemoteInInstallDir = invokeRemote.curry(sshTargetHost, sshTargetUser, "${deployDir}/dist/install");
-				final VALIDATE_MIGRATION_TEMPLATE_DB='mf15_template';
-				final VALIDATE_MIGRATION_TEST_DB="tmp-metasfresh-dist-${MF_UPSTREAM_BRANCH}-${env.BUILD_NUMBER}-${MF_VERSION}"
-						.replaceAll('[^a-zA-Z0-9]', '_') // // postgresql is in a way is allergic to '-' and '.' and many other characters in in DB names
-						.toLowerCase(); // also, DB names are generally in lowercase
-
-				invokeRemoteInInstallDir("./sql_remote.sh -n ${VALIDATE_MIGRATION_TEMPLATE_DB} ${VALIDATE_MIGRATION_TEST_DB}");
-
-				invokeRemoteInHomeDir("rm -r ${deployDir}"); // cleanup
-			}
-		}
-	} // if(params.MF_SKIP_SQL_MIGRATION_TEST)
-} // stage
-
 } // timestamps

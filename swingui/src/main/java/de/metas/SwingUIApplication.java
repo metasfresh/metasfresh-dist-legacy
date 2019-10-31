@@ -1,7 +1,6 @@
 package de.metas;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Profile;
 
 /*
  * #%L
@@ -27,17 +26,16 @@ import org.springframework.context.annotation.Profile;
 
 /**
  * Swing application starter.
- * 
+ *
  * WARNING: please keep in sync with all other SwingUIApplications
- * 
+ *
  * @author metas-dev <dev@metasfresh.com>
  *
  */
 @SpringBootApplication(scanBasePackages = { "de.metas", "org.adempiere" })
-@Profile(SwingUIApplication.PROFILE)
 public class SwingUIApplication extends SwingUIApplicationTemplate
 {
-	public static void main(String[] args)
+	public static void main(final String[] args)
 	{
 		main(SwingUIApplication.class, args);
 	}
