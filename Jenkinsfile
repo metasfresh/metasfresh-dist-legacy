@@ -120,7 +120,7 @@ node('agent && linux')
 				"CHANGE_URL=${env.CHANGE_URL}",
 				"BUILD_NUMBER=${env.BUILD_NUMBER}"])
 		{
-		withMaven(jdk: 'java-8', maven: 'maven-3.5.0', mavenLocalRepo: '.repository')
+		withMaven(jdk: 'openjdk-13', maven: 'maven-3.5.0', mavenLocalRepo: '.repository')
 		{
 			// create our config instance to be used further on
 			final MvnConf mvnConf = new MvnConf(
