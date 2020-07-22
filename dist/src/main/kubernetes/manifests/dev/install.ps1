@@ -29,8 +29,8 @@ kubectl apply -f .\rabbitmq\metasfresh-rabbitmq-svc_demouser_demo.yaml
 
 
 # elastic search should not be needed locally, right?
-# kubectl apply -f .\search\metasfresh-search-deploy_demouser_demo.yaml
-# kubectl apply -f .\search\metasfresh-search-svc_demouser_demo.yaml
+kubectl apply -f .\search\metasfresh-search-deploy_demouser_demo.yaml
+kubectl apply -f .\search\metasfresh-search-svc_demouser_demo.yaml
 
 echo "Done installing! Waiting for stuff to start"
 Start-Sleep 10;
